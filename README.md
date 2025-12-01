@@ -88,7 +88,7 @@ cd portfolio
 ## 📧 연락처
 
 - **이메일**: dlfnsdkcla@gmail.com
-- **전화번호**: +82-10-1234-5678
+- **전화번호**: +82-10-3226-7304
 - **GitHub**: [github.com/yourusername](https://github.com)
 
 ## 📄 라이선스
@@ -98,4 +98,5 @@ cd portfolio
 ---
 
 **Built with ❤️ by 박종민**
+
 
