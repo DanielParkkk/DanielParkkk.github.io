@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Study Time Analyzer</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            min-height: 100vh;
+            padding: 2rem;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            padding: 2rem;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+        }
+        
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 2rem;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        
+        .stat-card {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+            padding: 1.5rem;
+            border-radius: 15px;
+            text-align: center;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+        
+        .stat-value {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+        }
+        
+        .stat-label {
+            font-size: 1rem;
+            opacity: 0.9;
+        }
+        
+        .study-form {
+            background: #f8f9fa;
+            padding: 2rem;
+            border-radius: 15px;
+            margin-bottom: 2rem;
+        }
+        
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr auto;
+            gap: 1rem;
+            margin-bottom: 1rem;
+            flex-wrap: wrap;
+        }
+        
+        .form-group {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .form-group label {
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+            color: #333;
+        }
+        
+        .form-group input,
+        .form-group select {
+            padding: 0.75rem;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 1rem;
+        }
+        
+        .form-group button {
+            padding: 0.75rem 2rem;
+            background: #4facfe;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 600;
+            transition: background 0.3s;
+            align-self: flex-end;
+        }
+        
+        .form-group button:hover {
+            background: #3d8bfe;
+        }
+        
+        .study-sessions {
+            margin-bottom: 2rem;
+        }
+        
+        .session-item {
+            background: #f8f9fa;
+            padding: 1rem;
+            border-radius: 10px;
+            margin-bottom: 0.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-left: 4px solid #4facfe;
+        }
+        
+        .session-info {
+            flex: 1;
+        }
+        
+        .session-subject {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 0.25rem;
+        }
+        
+        .session-details {
+            color: #666;
+            font-size: 0.9rem;
+        }
+        
+        .session-delete {
+            background: #f44336;
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        
+        .session-delete:hover {
+            background: #da190b;
+        }
+        
+        .charts-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 2rem;
+            margin-top: 2rem;
+        }
+        
+        .chart-container {
+            background: #f8f9fa;
+            padding: 1.5rem;
+            border-radius: 15px;
+        }
+        
+        .chart-container h3 {
+            margin-bottom: 1rem;
+            color: #333;
+        }
+        
+        @media (max-width: 768px) {
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+            
+            .charts-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📚 Study Time Analyzer</h1>
+        
+        <!-- 통계 카드 -->
+        <div class="stats-grid" id="statsGrid">
+            <div class="stat-card">
+                <div class="stat-value" id="totalHours">0</div>
+                <div class="stat-label">총 공부 시간</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="avgHours">0</div>
+                <div class="stat-label">일평균 시간</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="totalSessions">0</div>
+                <div class="stat-label">총 세션 수</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="currentStreak">0</div>
+                <div class="stat-label">연속 공부 일수</div>
+            </div>
+        </div>
+
+        <!-- 공부 시간 입력 폼 -->
+        <div class="study-form">
+            <h3 style="margin-bottom: 1rem;">공부 시간 기록</h3>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>과목</label>
+                    <input type="text" id="subjectInput" placeholder="예: 수학, 영어, 프로그래밍">
+                </div>
+                <div class="form-group">
+                    <label>공부 시간 (시간)</label>
+                    <input type="number" id="hoursInput" min="0" step="0.5" placeholder="2.5">
+                </div>
+                <div class="form-group">
+                    <label>날짜</label>
+                    <input type="date" id="dateInput">
+                </div>
+                <div class="form-group">
+                    <label>&nbsp;</label>
+                    <button onclick="addStudySession()">추가</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 공부 세션 목록 -->
+        <div class="study-sessions">
+            <h3 style="margin-bottom: 1rem;">최근 공부 기록</h3>
+            <div id="sessionsList"></div>
+        </div>
+
+        <!-- 차트 -->
+        <div class="charts-grid">
+            <div class="chart-container">
+                <h3>일별 공부 시간</h3>
+                <canvas id="dailyChart"></canvas>
+            </div>
+            <div class="chart-container">
+                <h3>과목별 공부 시간</h3>
+                <canvas id="subjectChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 로컬 스토리지에서 데이터 로드 (실제로는 MySQL에서 가져옴)
+        let studySessions = JSON.parse(localStorage.getItem('studySessions')) || [];
+        
+        // 오늘 날짜를 기본값으로 설정
+        document.getElementById('dateInput').valueAsDate = new Date();
+
+        // 차트 인스턴스
+        let dailyChart = null;
+        let subjectChart = null;
+
+        // 공부 세션 추가
+        function addStudySession() {
+            const subject = document.getElementById('subjectInput').value.trim();
+            const hours = parseFloat(document.getElementById('hoursInput').value);
+            const date = document.getElementById('dateInput').value;
+
+            if (!subject || !hours || hours <= 0) {
+                alert('모든 필드를 올바르게 입력해주세요!');
+                return;
+            }
+
+            const session = {
+                id: Date.now(),
+                subject: subject,
+                hours: hours,
+                date: date
+            };
+
+            studySessions.push(session);
+            saveSessions();
+            updateUI();
+            
+            // 폼 초기화
+            document.getElementById('subjectInput').value = '';
+            document.getElementById('hoursInput').value = '';
+            document.getElementById('dateInput').valueAsDate = new Date();
+        }
+
+        // 세션 삭제
+        function deleteSession(id) {
+            if (confirm('정말 삭제하시겠습니까?')) {
+                studySessions = studySessions.filter(session => session.id !== id);
+                saveSessions();
+                updateUI();
+            }
+        }
+
+        // 세션 저장
+        function saveSessions() {
+            localStorage.setItem('studySessions', JSON.stringify(studySessions));
+        }
+
+        // 통계 계산
+        function calculateStats() {
+            if (studySessions.length === 0) {
+                return {
+                    totalHours: 0,
+                    avgHours: 0,
+                    totalSessions: 0,
+                    currentStreak: 0
+                };
+            }
+
+            const totalHours = studySessions.reduce((sum, session) => sum + session.hours, 0);
+            const uniqueDates = [...new Set(studySessions.map(s => s.date))];
+            const avgHours = totalHours / uniqueDates.length;
+            const totalSessions = studySessions.length;
+            
+            // 연속 일수 계산
+            const sortedDates = uniqueDates.sort((a, b) => new Date(a) - new Date(b));
+            let streak = 0;
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            
+            for (let i = sortedDates.length - 1; i >= 0; i--) {
+                const date = new Date(sortedDates[i]);
+                date.setHours(0, 0, 0, 0);
+                const expectedDate = new Date(today);
+                expectedDate.setDate(today.getDate() - streak);
+                
+                if (date.getTime() === expectedDate.getTime()) {
+                    streak++;
+                } else {
+                    break;
+                }
+            }
+
+            return { totalHours, avgHours, totalSessions, currentStreak: streak };
+        }
+
+        // UI 업데이트
+        function updateUI() {
+            const stats = calculateStats();
+            
+            document.getElementById('totalHours').textContent = stats.totalHours.toFixed(1);
+            document.getElementById('avgHours').textContent = stats.avgHours.toFixed(1);
+            document.getElementById('totalSessions').textContent = stats.totalSessions;
+            document.getElementById('currentStreak').textContent = stats.currentStreak;
+
+            // 세션 목록 업데이트
+            const sessionsList = document.getElementById('sessionsList');
+            if (studySessions.length === 0) {
+                sessionsList.innerHTML = '<p style="text-align: center; color: #666; padding: 2rem;">아직 공부 기록이 없습니다.</p>';
+            } else {
+                const sortedSessions = [...studySessions].sort((a, b) => new Date(b.date) - new Date(a.date));
+                sessionsList.innerHTML = sortedSessions.slice(0, 10).map(session => `
+                    <div class="session-item">
+                        <div class="session-info">
+                            <div class="session-subject">${session.subject}</div>
+                            <div class="session-details">
+                                ${session.hours}시간 · ${formatDate(session.date)}
+                            </div>
+                        </div>
+                        <button class="session-delete" onclick="deleteSession(${session.id})">삭제</button>
+                    </div>
+                `).join('');
+            }
+
+            updateCharts();
+        }
+
+        // 날짜 포맷
+        function formatDate(dateString) {
+            const date = new Date(dateString);
+            return `${date.getFullYear()}.${String(date.getMonth() + 1).padStart(2, '0')}.${String(date.getDate()).padStart(2, '0')}`;
+        }
+
+        // 차트 업데이트
+        function updateCharts() {
+            // 일별 공부 시간 차트
+            const dailyData = getDailyData();
+            const dailyCtx = document.getElementById('dailyChart').getContext('2d');
+            
+            if (dailyChart) {
+                dailyChart.destroy();
+            }
+
+            dailyChart = new Chart(dailyCtx, {
+                type: 'line',
+                data: {
+                    labels: dailyData.labels,
+                    datasets: [{
+                        label: '공부 시간 (시간)',
+                        data: dailyData.data,
+                        borderColor: '#4facfe',
+                        backgroundColor: 'rgba(79, 172, 254, 0.1)',
+                        tension: 0.4,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+
+            // 과목별 공부 시간 차트
+            const subjectData = getSubjectData();
+            const subjectCtx = document.getElementById('subjectChart').getContext('2d');
+            
+            if (subjectChart) {
+                subjectChart.destroy();
+            }
+
+            subjectChart = new Chart(subjectCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: subjectData.labels,
+                    datasets: [{
+                        data: subjectData.data,
+                        backgroundColor: [
+                            '#4facfe',
+                            '#00f2fe',
+                            '#43e97b',
+                            '#fa709a',
+                            '#fee140',
+                            '#30cfd0'
+                        ]
+                    }]
+                },
+                options: {
+                    responsive: true
+                }
+            });
+        }
+
+        // 일별 데이터 준비
+        function getDailyData() {
+            const last7Days = [];
+            const today = new Date();
+            for (let i = 6; i >= 0; i--) {
+                const date = new Date(today);
+                date.setDate(today.getDate() - i);
+                last7Days.push(date.toISOString().split('T')[0]);
+            }
+
+            const dailyHours = last7Days.map(date => {
+                return studySessions
+                    .filter(s => s.date === date)
+                    .reduce((sum, s) => sum + s.hours, 0);
+            });
+
+            return {
+                labels: last7Days.map(d => formatDate(d)),
+                data: dailyHours
+            };
+        }
+
+        // 과목별 데이터 준비
+        function getSubjectData() {
+            const subjectMap = {};
+            studySessions.forEach(session => {
+                if (subjectMap[session.subject]) {
+                    subjectMap[session.subject] += session.hours;
+                } else {
+                    subjectMap[session.subject] = session.hours;
+                }
+            });
+
+            const sorted = Object.entries(subjectMap)
+                .sort((a, b) => b[1] - a[1])
+                .slice(0, 6);
+
+            return {
+                labels: sorted.map(([subject]) => subject),
+                data: sorted.map(([, hours]) => hours)
+            };
+        }
+
+        // Enter 키로 추가
+        document.getElementById('subjectInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') addStudySession();
+        });
+        document.getElementById('hoursInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') addStudySession();
+        });
+
+        // 초기 로드
+        updateUI();
+    </script>
+</body>
+</html>
+

@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Habit Tracker</title>
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 2rem;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            padding: 2rem;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+        }
+        
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 2rem;
+        }
+        
+        .habit-form {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 2rem;
+            flex-wrap: wrap;
+        }
+        
+        .habit-form input {
+            flex: 1;
+            min-width: 200px;
+            padding: 0.75rem;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 1rem;
+        }
+        
+        .habit-form button {
+            padding: 0.75rem 2rem;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 600;
+            transition: background 0.3s;
+        }
+        
+        .habit-form button:hover {
+            background: #5568d3;
+        }
+        
+        .habits-list {
+            display: grid;
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+        
+        .habit-item {
+            background: #f8f9fa;
+            padding: 1.5rem;
+            border-radius: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-left: 4px solid #667eea;
+        }
+        
+        .habit-info {
+            flex: 1;
+        }
+        
+        .habit-name {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 0.5rem;
+        }
+        
+        .habit-stats {
+            display: flex;
+            gap: 2rem;
+            color: #666;
+            font-size: 0.9rem;
+        }
+        
+        .habit-actions {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+        }
+        
+        .check-btn {
+            padding: 0.5rem 1.5rem;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: background 0.3s;
+        }
+        
+        .check-btn:hover {
+            background: #45a049;
+        }
+        
+        .check-btn.completed {
+            background: #81c784;
+        }
+        
+        .delete-btn {
+            padding: 0.5rem 1rem;
+            background: #f44336;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        
+        .delete-btn:hover {
+            background: #da190b;
+        }
+        
+        .chart-container {
+            margin-top: 2rem;
+            padding: 1.5rem;
+            background: #f8f9fa;
+            border-radius: 10px;
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 30px;
+            background: #e0e0e0;
+            border-radius: 15px;
+            overflow: hidden;
+            margin-top: 1rem;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            transition: width 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        // 로컬 스토리지를 사용한 간단한 데이터 저장 (실제로는 Flask + MySQL 사용)
+        const HabitTracker = () => {
+            const [habits, setHabits] = useState(() => {
+                const saved = localStorage.getItem('habits');
+                return saved ? JSON.parse(saved) : [];
+            });
+            
+            const [newHabit, setNewHabit] = useState('');
+            const [chartData, setChartData] = useState(null);
+
+            // 습관 목록 저장
+            useEffect(() => {
+                localStorage.setItem('habits', JSON.stringify(habits));
+                updateChart();
+            }, [habits]);
+
+            // 습관 추가
+            const addHabit = () => {
+                if (newHabit.trim()) {
+                    const habit = {
+                        id: Date.now(),
+                        name: newHabit,
+                        completedDays: [],
+                        totalDays: 0,
+                        streak: 0
+                    };
+                    setHabits([...habits, habit]);
+                    setNewHabit('');
+                }
+            };
+
+            // 습관 체크 (오늘 완료)
+            const checkHabit = (id) => {
+                const today = new Date().toDateString();
+                setHabits(habits.map(habit => {
+                    if (habit.id === id) {
+                        const isCompleted = habit.completedDays.includes(today);
+                        let newCompletedDays = [...habit.completedDays];
+                        let newStreak = habit.streak;
+                        
+                        if (isCompleted) {
+                            // 이미 완료된 경우 취소
+                            newCompletedDays = newCompletedDays.filter(day => day !== today);
+                        } else {
+                            // 완료 처리
+                            newCompletedDays.push(today);
+                            // 연속 일수 계산
+                            const sortedDays = newCompletedDays.sort((a, b) => new Date(a) - new Date(b));
+                            newStreak = calculateStreak(sortedDays);
+                        }
+                        
+                        return {
+                            ...habit,
+                            completedDays: newCompletedDays,
+                            totalDays: newCompletedDays.length,
+                            streak: newStreak
+                        };
+                    }
+                    return habit;
+                }));
+            };
+
+            // 연속 일수 계산
+            const calculateStreak = (days) => {
+                if (days.length === 0) return 0;
+                const today = new Date();
+                let streak = 0;
+                for (let i = days.length - 1; i >= 0; i--) {
+                    const day = new Date(days[i]);
+                    const expectedDate = new Date(today);
+                    expectedDate.setDate(today.getDate() - streak);
+                    if (day.toDateString() === expectedDate.toDateString()) {
+                        streak++;
+                    } else {
+                        break;
+                    }
+                }
+                return streak;
+            };
+
+            // 습관 삭제
+            const deleteHabit = (id) => {
+                if (window.confirm('정말 삭제하시겠습니까?')) {
+                    setHabits(habits.filter(habit => habit.id !== id));
+                }
+            };
+
+            // 차트 데이터 업데이트
+            const updateChart = () => {
+                if (habits.length === 0) {
+                    setChartData(null);
+                    return;
+                }
+
+                const labels = habits.map(h => h.name);
+                const completionRates = habits.map(h => {
+                    const daysSinceStart = Math.max(1, Math.floor((Date.now() - h.id) / (1000 * 60 * 60 * 24)));
+                    return Math.round((h.totalDays / daysSinceStart) * 100);
+                });
+
+                setChartData({
+                    labels: labels,
+                    datasets: [{
+                        label: '달성률 (%)',
+                        data: completionRates,
+                        backgroundColor: 'rgba(102, 126, 234, 0.6)',
+                        borderColor: 'rgba(102, 126, 234, 1)',
+                        borderWidth: 2
+                    }]
+                });
+            };
+
+            // 오늘 완료 여부 확인
+            const isTodayCompleted = (habit) => {
+                const today = new Date().toDateString();
+                return habit.completedDays.includes(today);
+            };
+
+            // 전체 달성률 계산
+            const overallProgress = habits.length > 0
+                ? Math.round((habits.filter(h => isTodayCompleted(h)).length / habits.length) * 100)
+                : 0;
+
+            return (
+                <div className="container">
+                    <h1>📊 Smart Habit Tracker</h1>
+                    
+                    {/* 전체 진행률 */}
+                    <div style={{ marginBottom: '2rem' }}>
+                        <h3 style={{ marginBottom: '0.5rem' }}>오늘의 전체 달성률</h3>
+                        <div className="progress-bar">
+                            <div className="progress-fill" style={{ width: `${overallProgress}%` }}>
+                                {overallProgress}%
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* 습관 추가 폼 */}
+                    <div className="habit-form">
+                        <input
+                            type="text"
+                            placeholder="새로운 습관을 입력하세요 (예: 운동하기, 독서하기)"
+                            value={newHabit}
+                            onChange={(e) => setNewHabit(e.target.value)}
+                            onKeyPress={(e) => e.key === 'Enter' && addHabit()}
+                        />
+                        <button onClick={addHabit}>습관 추가</button>
+                    </div>
+
+                    {/* 습관 목록 */}
+                    <div className="habits-list">
+                        {habits.length === 0 ? (
+                            <p style={{ textAlign: 'center', color: '#666', padding: '2rem' }}>
+                                아직 등록된 습관이 없습니다. 새로운 습관을 추가해보세요!
+                            </p>
+                        ) : (
+                            habits.map(habit => (
+                                <div key={habit.id} className="habit-item">
+                                    <div className="habit-info">
+                                        <div className="habit-name">{habit.name}</div>
+                                        <div className="habit-stats">
+                                            <span>총 {habit.totalDays}일 완료</span>
+                                            <span>🔥 연속 {habit.streak}일</span>
+                                            <span>달성률: {Math.round((habit.totalDays / Math.max(1, Math.floor((Date.now() - habit.id) / (1000 * 60 * 60 * 24)))) * 100)}%</span>
+                                        </div>
+                                    </div>
+                                    <div className="habit-actions">
+                                        <button
+                                            className={`check-btn ${isTodayCompleted(habit) ? 'completed' : ''}`}
+                                            onClick={() => checkHabit(habit.id)}
+                                        >
+                                            {isTodayCompleted(habit) ? '✓ 완료됨' : '완료하기'}
+                                        </button>
+                                        <button
+                                            className="delete-btn"
+                                            onClick={() => deleteHabit(habit.id)}
+                                        >
+                                            삭제
+                                        </button>
+                                    </div>
+                                </div>
+                            ))
+                        )}
+                    </div>
+
+                    {/* 차트 */}
+                    {chartData && (
+                        <div className="chart-container">
+                            <h3 style={{ marginBottom: '1rem' }}>습관별 달성률</h3>
+                            <canvas id="habitChart" width="400" height="200"></canvas>
+                        </div>
+                    )}
+                </div>
+            );
+        };
+
+        // 차트 렌더링 컴포넌트
+        const ChartComponent = ({ data }) => {
+            const chartRef = React.useRef(null);
+            const chartInstance = React.useRef(null);
+
+            React.useEffect(() => {
+                if (data && chartRef.current) {
+                    const ctx = chartRef.current.getContext('2d');
+                    
+                    if (chartInstance.current) {
+                        chartInstance.current.destroy();
+                    }
+
+                    chartInstance.current = new Chart(ctx, {
+                        type: 'bar',
+                        data: data,
+                        options: {
+                            responsive: true,
+                            scales: {
+                                y: {
+                                    beginAtZero: true,
+                                    max: 100
+                                }
+                            }
+                        }
+                    });
+                }
+
+                return () => {
+                    if (chartInstance.current) {
+                        chartInstance.current.destroy();
+                    }
+                };
+            }, [data]);
+
+            return <canvas ref={chartRef}></canvas>;
+        };
+
+        // 메인 앱 컴포넌트
+        const App = () => {
+            const [habits, setHabits] = React.useState(() => {
+                const saved = localStorage.getItem('habits');
+                return saved ? JSON.parse(saved) : [];
+            });
+            
+            const [newHabit, setNewHabit] = React.useState('');
+            const [chartData, setChartData] = React.useState(null);
+
+            React.useEffect(() => {
+                localStorage.setItem('habits', JSON.stringify(habits));
+                if (habits.length > 0) {
+                    const labels = habits.map(h => h.name);
+                    const completionRates = habits.map(h => {
+                        const daysSinceStart = Math.max(1, Math.floor((Date.now() - h.id) / (1000 * 60 * 60 * 24)));
+                        return Math.round((h.totalDays / daysSinceStart) * 100);
+                    });
+
+                    setChartData({
+                        labels: labels,
+                        datasets: [{
+                            label: '달성률 (%)',
+                            data: completionRates,
+                            backgroundColor: 'rgba(102, 126, 234, 0.6)',
+                            borderColor: 'rgba(102, 126, 234, 1)',
+                            borderWidth: 2
+                        }]
+                    });
+                } else {
+                    setChartData(null);
+                }
+            }, [habits]);
+
+            const addHabit = () => {
+                if (newHabit.trim()) {
+                    const habit = {
+                        id: Date.now(),
+                        name: newHabit,
+                        completedDays: [],
+                        totalDays: 0,
+                        streak: 0
+                    };
+                    setHabits([...habits, habit]);
+                    setNewHabit('');
+                }
+            };
+
+            const checkHabit = (id) => {
+                const today = new Date().toDateString();
+                setHabits(habits.map(habit => {
+                    if (habit.id === id) {
+                        const isCompleted = habit.completedDays.includes(today);
+                        let newCompletedDays = [...habit.completedDays];
+                        
+                        if (isCompleted) {
+                            newCompletedDays = newCompletedDays.filter(day => day !== today);
+                        } else {
+                            newCompletedDays.push(today);
+                        }
+                        
+                        const sortedDays = newCompletedDays.sort((a, b) => new Date(a) - new Date(b));
+                        const newStreak = calculateStreak(sortedDays);
+                        
+                        return {
+                            ...habit,
+                            completedDays: newCompletedDays,
+                            totalDays: newCompletedDays.length,
+                            streak: newStreak
+                        };
+                    }
+                    return habit;
+                }));
+            };
+
+            const calculateStreak = (days) => {
+                if (days.length === 0) return 0;
+                const today = new Date();
+                let streak = 0;
+                for (let i = days.length - 1; i >= 0; i--) {
+                    const day = new Date(days[i]);
+                    const expectedDate = new Date(today);
+                    expectedDate.setDate(today.getDate() - streak);
+                    if (day.toDateString() === expectedDate.toDateString()) {
+                        streak++;
+                    } else {
+                        break;
+                    }
+                }
+                return streak;
+            };
+
+            const deleteHabit = (id) => {
+                if (window.confirm('정말 삭제하시겠습니까?')) {
+                    setHabits(habits.filter(habit => habit.id !== id));
+                }
+            };
+
+            const isTodayCompleted = (habit) => {
+                const today = new Date().toDateString();
+                return habit.completedDays.includes(today);
+            };
+
+            const overallProgress = habits.length > 0
+                ? Math.round((habits.filter(h => isTodayCompleted(h)).length / habits.length) * 100)
+                : 0;
+
+            return (
+                <div className="container">
+                    <h1>📊 Smart Habit Tracker</h1>
+                    
+                    <div style={{ marginBottom: '2rem' }}>
+                        <h3 style={{ marginBottom: '0.5rem' }}>오늘의 전체 달성률</h3>
+                        <div className="progress-bar">
+                            <div className="progress-fill" style={{ width: `${overallProgress}%` }}>
+                                {overallProgress}%
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="habit-form">
+                        <input
+                            type="text"
+                            placeholder="새로운 습관을 입력하세요 (예: 운동하기, 독서하기)"
+                            value={newHabit}
+                            onChange={(e) => setNewHabit(e.target.value)}
+                            onKeyPress={(e) => e.key === 'Enter' && addHabit()}
+                        />
+                        <button onClick={addHabit}>습관 추가</button>
+                    </div>
+
+                    <div className="habits-list">
+                        {habits.length === 0 ? (
+                            <p style={{ textAlign: 'center', color: '#666', padding: '2rem' }}>
+                                아직 등록된 습관이 없습니다. 새로운 습관을 추가해보세요!
+                            </p>
+                        ) : (
+                            habits.map(habit => (
+                                <div key={habit.id} className="habit-item">
+                                    <div className="habit-info">
+                                        <div className="habit-name">{habit.name}</div>
+                                        <div className="habit-stats">
+                                            <span>총 {habit.totalDays}일 완료</span>
+                                            <span>🔥 연속 {habit.streak}일</span>
+                                            <span>달성률: {Math.round((habit.totalDays / Math.max(1, Math.floor((Date.now() - habit.id) / (1000 * 60 * 60 * 24)))) * 100)}%</span>
+                                        </div>
+                                    </div>
+                                    <div className="habit-actions">
+                                        <button
+                                            className={`check-btn ${isTodayCompleted(habit) ? 'completed' : ''}`}
+                                            onClick={() => checkHabit(habit.id)}
+                                        >
+                                            {isTodayCompleted(habit) ? '✓ 완료됨' : '완료하기'}
+                                        </button>
+                                        <button
+                                            className="delete-btn"
+                                            onClick={() => deleteHabit(habit.id)}
+                                        >
+                                            삭제
+                                        </button>
+                                    </div>
+                                </div>
+                            ))
+                        )}
+                    </div>
+
+                    {chartData && (
+                        <div className="chart-container">
+                            <h3 style={{ marginBottom: '1rem' }}>습관별 달성률</h3>
+                            <ChartComponent data={chartData} />
+                        </div>
+                    )}
+                </div>
+            );
+        };
+
+        ReactDOM.render(<App />, document.getElementById('root'));
+    </script>
+</body>
+</html>
+
