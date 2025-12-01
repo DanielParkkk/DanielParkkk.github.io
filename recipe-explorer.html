@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Recipe Explorer</title>
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            min-height: 100vh;
+            padding: 2rem;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            padding: 2rem;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+        }
+        
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 2rem;
+        }
+        
+        .ingredient-input-section {
+            background: #f8f9fa;
+            padding: 2rem;
+            border-radius: 15px;
+            margin-bottom: 2rem;
+        }
+        
+        .ingredient-input {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1rem;
+            flex-wrap: wrap;
+        }
+        
+        .ingredient-input input {
+            flex: 1;
+            min-width: 200px;
+            padding: 0.75rem;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 1rem;
+        }
+        
+        .ingredient-input button {
+            padding: 0.75rem 2rem;
+            background: #f5576c;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 600;
+            transition: background 0.3s;
+        }
+        
+        .ingredient-input button:hover {
+            background: #e0485c;
+        }
+        
+        .ingredient-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin-top: 1rem;
+        }
+        
+        .ingredient-tag {
+            background: #f5576c;
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.9rem;
+        }
+        
+        .ingredient-tag button {
+            background: none;
+            border: none;
+            color: white;
+            cursor: pointer;
+            font-size: 1.2rem;
+            line-height: 1;
+            padding: 0;
+            width: 20px;
+            height: 20px;
+        }
+        
+        .search-btn {
+            width: 100%;
+            padding: 1rem;
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 1rem;
+            transition: transform 0.3s;
+        }
+        
+        .search-btn:hover {
+            transform: translateY(-2px);
+        }
+        
+        .search-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        .recipes-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 2rem;
+            margin-top: 2rem;
+        }
+        
+        .recipe-card {
+            background: white;
+            border-radius: 15px;
+            overflow: hidden;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            transition: transform 0.3s;
+        }
+        
+        .recipe-card:hover {
+            transform: translateY(-5px);
+        }
+        
+        .recipe-image {
+            width: 100%;
+            height: 200px;
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 4rem;
+        }
+        
+        .recipe-content {
+            padding: 1.5rem;
+        }
+        
+        .recipe-title {
+            font-size: 1.3rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            color: #333;
+        }
+        
+        .recipe-description {
+            color: #666;
+            margin-bottom: 1rem;
+            font-size: 0.9rem;
+        }
+        
+        .recipe-ingredients {
+            margin-bottom: 1rem;
+        }
+        
+        .recipe-ingredients h4 {
+            font-size: 0.9rem;
+            color: #333;
+            margin-bottom: 0.5rem;
+        }
+        
+        .ingredient-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+        
+        .ingredient-badge {
+            background: #f8f9fa;
+            padding: 0.25rem 0.75rem;
+            border-radius: 15px;
+            font-size: 0.8rem;
+            color: #666;
+        }
+        
+        .recipe-link {
+            display: inline-block;
+            padding: 0.5rem 1rem;
+            background: #f5576c;
+            color: white;
+            text-decoration: none;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            transition: background 0.3s;
+        }
+        
+        .recipe-link:hover {
+            background: #e0485c;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 3rem;
+            color: #666;
+        }
+        
+        .no-results {
+            text-align: center;
+            padding: 3rem;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState } = React;
+
+        // 레시피 데이터베이스 (실제로는 Python REST API에서 가져옴)
+        const RECIPE_DATABASE = [
+            {
+                id: 1,
+                name: "김치볶음밥",
+                description: "남은 김치와 밥으로 만드는 간단하고 맛있는 볶음밥",
+                ingredients: ["김치", "밥", "계란", "식용유"],
+                image: "🍳"
+            },
+            {
+                id: 2,
+                name: "계란말이",
+                description: "부드럽고 고소한 계란말이",
+                ingredients: ["계란", "식용유", "소금"],
+                image: "🍳"
+            },
+            {
+                id: 3,
+                name: "된장찌개",
+                description: "구수한 된장으로 끓인 따뜻한 찌개",
+                ingredients: ["된장", "두부", "애호박", "양파", "물"],
+                image: "🍲"
+            },
+            {
+                id: 4,
+                name: "마늘볶음밥",
+                description: "향긋한 마늘의 풍미가 일품인 볶음밥",
+                ingredients: ["마늘", "밥", "식용유", "소금"],
+                image: "🍳"
+            },
+            {
+                id: 5,
+                name: "두부조림",
+                description: "부드러운 두부를 양념에 조린 반찬",
+                ingredients: ["두부", "양파", "고추장", "설탕"],
+                image: "🍲"
+            },
+            {
+                id: 6,
+                name: "계란국",
+                description: "간단하고 시원한 계란국",
+                ingredients: ["계란", "물", "소금", "대파"],
+                image: "🍲"
+            },
+            {
+                id: 7,
+                name: "김치찌개",
+                description: "시원하고 칼칼한 김치찌개",
+                ingredients: ["김치", "두부", "물", "고춧가루"],
+                image: "🍲"
+            },
+            {
+                id: 8,
+                name: "야채볶음",
+                description: "신선한 야채를 볶은 건강한 반찬",
+                ingredients: ["양파", "애호박", "식용유", "소금"],
+                image: "🥗"
+            }
+        ];
+
+        const RecipeExplorer = () => {
+            const [ingredients, setIngredients] = useState([]);
+            const [currentIngredient, setCurrentIngredient] = useState('');
+            const [recipes, setRecipes] = useState([]);
+            const [loading, setLoading] = useState(false);
+
+            // 재료 추가
+            const addIngredient = () => {
+                if (currentIngredient.trim() && !ingredients.includes(currentIngredient.trim())) {
+                    setIngredients([...ingredients, currentIngredient.trim()]);
+                    setCurrentIngredient('');
+                }
+            };
+
+            // 재료 제거
+            const removeIngredient = (ingredient) => {
+                setIngredients(ingredients.filter(ing => ing !== ingredient));
+            };
+
+            // 레시피 검색 (실제로는 Python REST API 호출)
+            const searchRecipes = async () => {
+                if (ingredients.length === 0) {
+                    alert('재료를 최소 1개 이상 추가해주세요!');
+                    return;
+                }
+
+                setLoading(true);
+                
+                // 시뮬레이션: 실제로는 fetch('/api/recipes', { method: 'POST', body: JSON.stringify({ingredients}) })
+                setTimeout(() => {
+                    // 보유한 재료로 만들 수 있는 레시피 필터링
+                    const matchedRecipes = RECIPE_DATABASE.filter(recipe => {
+                        // 레시피의 재료 중 하나라도 보유 재료에 포함되면 매칭
+                        return recipe.ingredients.some(recipeIng => 
+                            ingredients.some(userIng => 
+                                recipeIng.includes(userIng) || userIng.includes(recipeIng)
+                            )
+                        );
+                    });
+
+                    // 매칭된 재료 수로 정렬
+                    const sortedRecipes = matchedRecipes.sort((a, b) => {
+                        const aMatches = a.ingredients.filter(ing => 
+                            ingredients.some(userIng => ing.includes(userIng) || userIng.includes(ing))
+                        ).length;
+                        const bMatches = b.ingredients.filter(ing => 
+                            ingredients.some(userIng => ing.includes(userIng) || userIng.includes(ing))
+                        ).length;
+                        return bMatches - aMatches;
+                    });
+
+                    setRecipes(sortedRecipes);
+                    setLoading(false);
+                }, 1000);
+            };
+
+            return (
+                <div className="container">
+                    <h1>🍳 Recipe Explorer</h1>
+                    <p style={{ textAlign: 'center', color: '#666', marginBottom: '2rem' }}>
+                        냉장고 속 재료를 입력하면 만들 수 있는 레시피를 추천해드립니다!
+                    </p>
+
+                    <div className="ingredient-input-section">
+                        <h3 style={{ marginBottom: '1rem' }}>보유한 재료를 입력하세요</h3>
+                        <div className="ingredient-input">
+                            <input
+                                type="text"
+                                placeholder="예: 계란, 김치, 밥, 두부..."
+                                value={currentIngredient}
+                                onChange={(e) => setCurrentIngredient(e.target.value)}
+                                onKeyPress={(e) => e.key === 'Enter' && addIngredient()}
+                            />
+                            <button onClick={addIngredient}>추가</button>
+                        </div>
+                        
+                        {ingredients.length > 0 && (
+                            <div className="ingredient-tags">
+                                {ingredients.map((ingredient, index) => (
+                                    <div key={index} className="ingredient-tag">
+                                        {ingredient}
+                                        <button onClick={() => removeIngredient(ingredient)}>×</button>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+
+                        <button 
+                            className="search-btn" 
+                            onClick={searchRecipes}
+                            disabled={ingredients.length === 0 || loading}
+                        >
+                            {loading ? '검색 중...' : '레시피 찾기 🔍'}
+                        </button>
+                    </div>
+
+                    {loading && (
+                        <div className="loading">
+                            <p>레시피를 찾고 있습니다...</p>
+                        </div>
+                    )}
+
+                    {!loading && recipes.length > 0 && (
+                        <div>
+                            <h2 style={{ marginBottom: '1rem' }}>
+                                추천 레시피 {recipes.length}개
+                            </h2>
+                            <div className="recipes-grid">
+                                {recipes.map(recipe => (
+                                    <div key={recipe.id} className="recipe-card">
+                                        <div className="recipe-image">
+                                            {recipe.image}
+                                        </div>
+                                        <div className="recipe-content">
+                                            <div className="recipe-title">{recipe.name}</div>
+                                            <div className="recipe-description">
+                                                {recipe.description}
+                                            </div>
+                                            <div className="recipe-ingredients">
+                                                <h4>필요한 재료:</h4>
+                                                <div className="ingredient-list">
+                                                    {recipe.ingredients.map((ing, idx) => (
+                                                        <span 
+                                                            key={idx} 
+                                                            className="ingredient-badge"
+                                                            style={{
+                                                                background: ingredients.some(userIng => 
+                                                                    ing.includes(userIng) || userIng.includes(ing)
+                                                                ) ? '#d4edda' : '#f8f9fa'
+                                                            }}
+                                                        >
+                                                            {ing}
+                                                        </span>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                            <a href="#" className="recipe-link">
+                                                레시피 보기 →
+                                            </a>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                    {!loading && recipes.length === 0 && ingredients.length > 0 && (
+                        <div className="no-results">
+                            <p>😔 해당 재료로 만들 수 있는 레시피를 찾지 못했습니다.</p>
+                            <p style={{ marginTop: '0.5rem' }}>다른 재료를 추가해보세요!</p>
+                        </div>
+                    )}
+                </div>
+            );
+        };
+
+        ReactDOM.render(<RecipeExplorer />, document.getElementById('root'));
+    </script>
+</body>
+</html>
+
